@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Speech-to-Text Pipeline</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Animated gradient background */
+        .gradient-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #0a0a0a, #1a1a2e, #16213e, #0f3460);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            z-index: -2;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Particle effect */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.5;
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #00d4ff;
+            border-radius: 50%;
+            animation: float 20s infinite linear;
+        }
+
+        @keyframes float {
+            from {
+                transform: translateY(100vh) translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            to {
+                transform: translateY(-100px) translateX(100px);
+                opacity: 0;
+            }
+        }
+
+        /* Header */
+        header {
+            padding: 2rem;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            letter-spacing: 2px;
+            background: linear-gradient(45deg, #00d4ff, #0099ff, #00d4ff);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .subtitle {
+            margin-top: 0.5rem;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.1rem;
+        }
+
+        /* Main container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            flex: 1;
+        }
+
+        /* Control panel */
+        .control-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 212, 255, 0.1);
+        }
+
+        /* Recording button */
+        .record-btn {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #1a1a2e, #16213e);
+            border: 3px solid #00d4ff;
+            color: #00d4ff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            margin: 0 auto 2rem;
+            display: block;
+        }
+
+        .record-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+        }
+
+        .record-btn.recording {
+            animation: pulse 1.5s infinite;
+            background: linear-gradient(145deg, #ff0040, #cc0033);
+            border-color: #ff0040;
+            color: #fff;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 0, 64, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 30px rgba(255, 0, 64, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 0, 64, 0);
+            }
+        }
+
+        /* Audio visualizer */
+        .visualizer {
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            margin: 2rem 0;
+        }
+
+        .bar {
+            width: 4px;
+            background: linear-gradient(to top, #00d4ff, #0099ff);
+            border-radius: 2px;
+            transition: height 0.1s ease;
+        }
+
+        /* Status indicator */
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #666;
+            position: relative;
+        }
+
+        .status-dot.active {
+            background: #00ff88;
+            animation: statusPulse 2s infinite;
+        }
+
+        @keyframes statusPulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(0, 255, 136, 0);
+            }
+        }
+
+        /* Results section */
+        .results {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-height: 300px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .results::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #00d4ff, #0099ff, #00d4ff);
+            border-radius: 20px;
+            opacity: 0;
+            z-index: -1;
+            transition: opacity 0.3s ease;
+        }
+
+        .results.processing::before {
+            opacity: 1;
+            animation: rotate 3s linear infinite;
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results-content {
+            position: relative;
+            z-index: 1;
+            background: #0a0a0a;
+            border-radius: 18px;
+            padding: 2rem;
+            min-height: 260px;
+        }
+
+        /* Transcription display */
+        .transcription {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 1.5rem;
+        }
+
+        .transcription.loading {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .transcription.loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        /* Analysis cards */
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .analysis-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transform: translateY(20px);
+            opacity: 0;
+            animation: slideUp 0.5s ease forwards;
+        }
+
+        .analysis-card:nth-child(1) { animation-delay: 0.1s; }
+        .analysis-card:nth-child(2) { animation-delay: 0.2s; }
+        .analysis-card:nth-child(3) { animation-delay: 0.3s; }
+        .analysis-card:nth-child(4) { animation-delay: 0.4s; }
+
+        @keyframes slideUp {
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .analysis-card h3 {
+            color: #00d4ff;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .analysis-card .icon {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(45deg, #00d4ff, #0099ff);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        /* Progress indicator */
+        .progress-ring {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto;
+        }
+
+        .progress-ring circle {
+            fill: none;
+            stroke-width: 4;
+        }
+
+        .progress-ring .background {
+            stroke: rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-ring .progress {
+            stroke: #00d4ff;
+            stroke-linecap: round;
+            transform: rotate(-90deg);
+            transform-origin: center;
+            transition: stroke-dashoffset 0.3s ease;
+        }
+
+        /* Error state */
+        .error-message {
+            background: rgba(255, 0, 64, 0.1);
+            border: 1px solid rgba(255, 0, 64, 0.3);
+            color: #ff4066;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+            animation: shake 0.5s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .container { padding: 1rem; }
+            .control-panel, .results { padding: 1.5rem; }
+            .record-btn { width: 100px; height: 100px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="gradient-bg"></div>
+    <div class="particles" id="particles"></div>
+
+    <header>
+        <h1>Healthcare Speech-to-Text Pipeline</h1>
+        <p class="subtitle">Transcrição médica com análise semântica avançada</p>
+    </header>
+
+    <div class="container">
+        <div class="control-panel">
+            <button class="record-btn" id="recordBtn">
+                <span id="btnText">Gravar</span>
+            </button>
+
+            <div class="visualizer" id="visualizer">
+                <!-- Audio bars will be generated here -->
+            </div>
+
+            <div class="status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Pronto para gravar</span>
+            </div>
+        </div>
+
+        <div class="results" id="results">
+            <div class="results-content">
+                <h2 style="margin-bottom: 1.5rem; color: #00d4ff;">Resultados da Transcrição</h2>
+                
+                <div class="transcription" id="transcription">
+                    <p style="color: rgba(255, 255, 255, 0.5);">Clique no botão para iniciar a gravação...</p>
+                </div>
+
+                <div class="analysis-grid" id="analysisGrid" style="display: none;">
+                    <!-- Analysis cards will be generated here -->
+                </div>
+
+                <div class="error-message" id="errorMessage"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_ENDPOINT = 'https://healthspeechpipeline.azurewebsites.net/api';
+        
+        // State
+        let isRecording = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let analyzerContext = null;
+        let analyser = null;
+        let animationId = null;
+
+        // Elements
+        const recordBtn = document.getElementById('recordBtn');
+        const btnText = document.getElementById('btnText');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const visualizer = document.getElementById('visualizer');
+        const results = document.getElementById('results');
+        const transcription = document.getElementById('transcription');
+        const analysisGrid = document.getElementById('analysisGrid');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // Create particles
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                particle.style.animationDuration = (20 + Math.random() * 10) + 's';
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        // Create visualizer bars
+        function createVisualizerBars() {
+            for (let i = 0; i < 50; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'bar';
+                bar.style.height = '5px';
+                visualizer.appendChild(bar);
+            }
+        }
+
+        // Initialize audio visualizer
+        async function initializeVisualizer(stream) {
+            analyzerContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = analyzerContext.createAnalyser();
+            const source = analyzerContext.createMediaStreamSource(stream);
+            source.connect(analyser);
+            analyser.fftSize = 256;
+            
+            animateVisualizer();
+        }
+
+        // Animate visualizer
+        function animateVisualizer() {
+            const bars = visualizer.querySelectorAll('.bar');
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function draw() {
+                animationId = requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+
+                bars.forEach((bar, i) => {
+                    const value = dataArray[i * 2] || 0;
+                    const height = Math.max(5, (value / 255) * 100);
+                    bar.style.height = height + 'px';
+                });
+            }
+
+            draw();
+        }
+
+        // Stop visualizer
+        function stopVisualizer() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            if (analyzerContext) {
+                analyzerContext.close();
+                analyzerContext = null;
+            }
+            
+            // Reset bars
+            const bars = visualizer.querySelectorAll('.bar');
+            bars.forEach(bar => {
+                bar.style.height = '5px';
+            });
+        }
+
+        // Start recording
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    await processAudio(audioBlob);
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+
+                // Update UI
+                recordBtn.classList.add('recording');
+                btnText.textContent = 'Parar';
+                statusDot.classList.add('active');
+                statusText.textContent = 'Gravando...';
+
+                // Start visualizer
+                await initializeVisualizer(stream);
+
+            } catch (error) {
+                showError('Erro ao acessar o microfone. Verifique as permissões.');
+            }
+        }
+
+        // Stop recording
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                isRecording = false;
+
+                // Update UI
+                recordBtn.classList.remove('recording');
+                btnText.textContent = 'Gravar';
+                statusDot.classList.remove('active');
+                statusText.textContent = 'Processando...';
+
+                // Stop visualizer
+                stopVisualizer();
+            }
+        }
+
+        // Process audio
+        async function processAudio(audioBlob) {
+            try {
+                results.classList.add('processing');
+                transcription.classList.add('loading');
+                transcription.innerHTML = '<p>Processando áudio...</p>';
+                analysisGrid.style.display = 'none';
+                errorMessage.classList.remove('show');
+
+                // Create form data
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.wav');
+
+                // Start orchestration
+                const response = await fetch(`${API_ENDPOINT}/health/session/start`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Language': 'pt-BR',
+                        'X-Speakers': '1'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Erro ao processar áudio');
+                }
+
+                const data = await response.json();
+                const instanceId = data.instanceId;
+
+                // Poll for results
+                await pollForResults(instanceId);
+
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                results.classList.remove('processing');
+                transcription.classList.remove('loading');
+                statusText.textContent = 'Pronto para gravar';
+            }
+        }
+
+        // Poll for results
+        async function pollForResults(instanceId) {
+            let attempts = 0;
+            const maxAttempts = 30;
+
+            while (attempts < maxAttempts) {
+                try {
+                    const response = await fetch(`${API_ENDPOINT}/health/session/status/${instanceId}`);
+                    const data = await response.json();
+
+                    if (data.runtimeStatus === 'Completed') {
+                        displayResults(data.output);
+                        return;
+                    } else if (data.runtimeStatus === 'Failed') {
+                        throw new Error('Erro no processamento');
+                    }
+
+                    // Wait before next poll
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    attempts++;
+
+                } catch (error) {
+                    throw error;
+                }
+            }
+
+            throw new Error('Tempo limite excedido');
+        }
+
+        // Display results
+        function displayResults(data) {
+            // Display transcription
+            transcription.innerHTML = `
+                <h3 style="color: #00d4ff; margin-bottom: 1rem;">Transcrição:</h3>
+                <p>${data.transcription.fullText}</p>
+            `;
+
+            // Display analysis
+            analysisGrid.innerHTML = '';
+            analysisGrid.style.display = 'grid';
+
+            const analyses = [
+                {
+                    title: 'Análise Semântica',
+                    icon: '🧠',
+                    content: formatSemanticAnalysis(data.semanticAnalysis)
+                },
+                {
+                    title: 'Análise de Risco',
+                    icon: '⚠️',
+                    content: formatRiskAnalysis(data.riskAnalysis)
+                },
+                {
+                    title: 'Resumo Clínico',
+                    icon: '📋',
+                    content: data.summary
+                },
+                {
+                    title: 'Termos Médicos',
+                    icon: '🔬',
+                    content: formatMedicalTerms(data.transcription.medicalTerms)
+                }
+            ];
+
+            analyses.forEach((analysis, index) => {
+                const card = document.createElement('div');
+                card.className = 'analysis-card';
+                card.innerHTML = `
+                    <h3>
+                        <div class="icon">${analysis.icon}</div>
+                        ${analysis.title}
+                    </h3>
+                    <div>${analysis.content}</div>
+                `;
+                analysisGrid.appendChild(card);
+            });
+        }
+
+        // Format semantic analysis
+        function formatSemanticAnalysis(analysis) {
+            if (!analysis) return '<p>Análise não disponível</p>';
+            
+            return `
+                <p><strong>Queixa Principal:</strong> ${analysis.chiefComplaint || 'N/A'}</p>
+                <p><strong>Sintomas:</strong> ${analysis.symptoms?.join(', ') || 'N/A'}</p>
+                <p><strong>Duração:</strong> ${analysis.duration || 'N/A'}</p>
+            `;
+        }
+
+        // Format risk analysis
+        function formatRiskAnalysis(analysis) {
+            if (!analysis) return '<p>Análise não disponível</p>';
+            
+            const riskLevel = analysis.overallRisk || 'low';
+            const riskColor = riskLevel === 'high' ? '#ff4066' : riskLevel === 'medium' ? '#ffaa00' : '#00ff88';
+            
+            return `
+                <p style="color: ${riskColor};"><strong>Nível de Risco:</strong> ${riskLevel.toUpperCase()}</p>
+                <p><strong>Fatores:</strong> ${analysis.riskFactors?.join(', ') || 'Nenhum identificado'}</p>
+            `;
+        }
+
+        // Format medical terms
+        function formatMedicalTerms(terms) {
+            if (!terms || terms.length === 0) return '<p>Nenhum termo médico identificado</p>';
+            
+            return `<p>${terms.map(term => `<span style="background: rgba(0, 212, 255, 0.2); padding: 2px 8px; border-radius: 4px; margin: 2px;">${term}</span>`).join(' ')}</p>`;
+        }
+
+        // Show error
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+            statusText.textContent = 'Erro';
+        }
+
+        // Event listeners
+        recordBtn.addEventListener('click', () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+
+        // Initialize
+        createParticles();
+        createVisualizerBars();
+
+        // Mock data for demonstration (remove in production)
+        window.mockDemo = function() {
+            results.classList.add('processing');
+            transcription.classList.add('loading');
+            
+            setTimeout(() => {
+                displayResults({
+                    transcription: {
+                        fullText: "Paciente relata dor de cabeça intensa há três dias, com fotofobia e náuseas. Nega febre ou rigidez de nuca. História prévia de enxaqueca.",
+                        medicalTerms: ["fotofobia", "náuseas", "rigidez de nuca", "enxaqueca"]
+                    },
+                    semanticAnalysis: {
+                        chiefComplaint: "Dor de cabeça intensa",
+                        symptoms: ["Cefaleia", "Fotofobia", "Náuseas"],
+                        duration: "3 dias"
+                    },
+                    riskAnalysis: {
+                        overallRisk: "medium",
+                        riskFactors: ["Duração prolongada", "Sintomas neurológicos"]
+                    },
+                    summary: "Paciente com quadro sugestivo de enxaqueca, apresentando cefaleia intensa há 3 dias associada a fotofobia e náuseas. Ausência de sinais de alarme como febre ou rigidez de nuca."
+                });
+                
+                results.classList.remove('processing');
+                transcription.classList.remove('loading');
+                statusText.textContent = 'Análise concluída';
+            }, 3000);
+        };
+    </script>
+</body>
+</html>
