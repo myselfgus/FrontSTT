@@ -16,6 +16,7 @@ https://[seu-usuario].github.io/healthcare-stt-demo/
 Abra o console do navegador (F12) e execute:
 ```javascript
 mockDemo()
+```
 
 ### Passo 3: Fazer upload via GitHub Web
 1. Após criar o repositório, clique em "uploading an existing file"
@@ -38,6 +39,16 @@ az functionapp cors add \
   --name healthspeechpipeline \
   --resource-group health.health \
   --allowed-origins https://[seu-usuario].github.io
+```
 Atualizar API Endpoint no Frontend
 No arquivo index.html, linha ~402:
-javascriptconst API_ENDPOINT = 'https://healthspeechpipeline.azurewebsites.net/api';
+```javascript
+const API_ENDPOINT = 'https://healthspeechpipeline.azurewebsites.net/api';
+```
+
+## Testes Locais
+1. Instale o Node.js a partir de [nodejs.org](https://nodejs.org/).
+2. No terminal, execute:
+```bash
+npm test
+```
