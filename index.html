@@ -442,6 +442,7 @@
     <script>
         // Configuration
         const API_ENDPOINT = 'https://healthspeechpipeline.azurewebsites.net/api';
+        const MAX_SEND_ATTEMPTS = 2;
         
         // State
         let isRecording = false;
@@ -586,7 +587,7 @@
         }
 
         // Process audio
-        async function processAudio(audioBlob) {
+        async function processAudio(audioBlob, attempt = 1) {
             try {
                 results.classList.add('processing');
                 transcription.classList.add('loading');
@@ -619,7 +620,13 @@
                 await pollForResults(instanceId);
 
             } catch (error) {
-                showError(error.message);
+                console.error('Erro ao enviar áudio:', error);
+                if (attempt < MAX_SEND_ATTEMPTS) {
+                    statusText.textContent = `Tentando novamente (${attempt + 1}/${MAX_SEND_ATTEMPTS})...`;
+                    await processAudio(audioBlob, attempt + 1);
+                } else {
+                    showError('Não foi possível enviar o áudio. Verifique sua conexão e tente novamente.');
+                }
             } finally {
                 results.classList.remove('processing');
                 transcription.classList.remove('loading');
