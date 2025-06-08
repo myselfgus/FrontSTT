@@ -41,3 +41,6 @@ az functionapp cors add \
 Atualizar API Endpoint no Frontend
 No arquivo index.html, linha ~402:
 javascriptconst API_ENDPOINT = 'https://healthspeechpipeline.azurewebsites.net/api';
+## License
+
+This project is licensed under the [MIT License](LICENSE).
