@@ -13,6 +13,17 @@ https://[seu-usuario].github.io/healthcare-stt-demo/
 - 📱 Totalmente responsivo
 
 ## Para demonstração offline
+### Servir localmente
+Para abrir o `index.html` no navegador sem erros de permissão ou CORS, use um servidor HTTP simples.
+
+```bash
+npx serve
+```
+
+```bash
+python -m http.server
+```
+
 Abra o console do navegador (F12) e execute:
 ```javascript
 mockDemo()
